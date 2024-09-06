@@ -38,6 +38,15 @@ async fn main() {
                 .short('H')
                 .long("header"),
         )
+        .arg(
+            Arg::new("verbose")
+                .help(
+                    "Show detail information about request and response <f for False/ t for True>",
+                )
+                .short('v')
+                .long("verbose")
+                .default_value("f"),
+        )
         .get_matches();
 
     // Get the values
@@ -45,6 +54,7 @@ async fn main() {
     let method = matches.get_one::<String>("method").unwrap();
     let headers = matches.get_one::<String>("header");
     let data = matches.get_one::<String>("data");
+    let verbose = matches.get_one::<String>("verbose");
 
     // Init HTTP client
     let client: Client = Client::new();
@@ -86,8 +96,15 @@ async fn main() {
 
     // Send the request and await the response
     let response = req_builder.send().await.unwrap();
-    let body = response.text().await.unwrap();
 
+    if verbose.is_some() && verbose.unwrap().to_string() == "t" {
+        // Verbose mode
+        println!("Request URL: {}", url);
+        println!("Status Code: {}", response.status());
+        println!("Response Headers:\n{:#?}", response.headers());
+    }
+
+    let body = response.text().await.unwrap();
     println!();
     println!("{}", body);
 }
