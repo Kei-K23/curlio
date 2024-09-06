@@ -1,7 +1,7 @@
 use clap::{Arg, Command};
 use reqwest::{
     header::{HeaderMap, HeaderName, HeaderValue},
-    Client,
+    Client, Response,
 };
 use serde_json::{from_str, Value};
 use std::{str::FromStr, time::Duration};
@@ -58,7 +58,14 @@ async fn main() {
             Arg::new("timeout")
                 .help("Set a timeout for the request (in seconds)")
                 .short('t')
-                .long("timeout"),
+                .long("timeout")
+                .default_value("10"),
+        )
+        .arg(
+            Arg::new("retry")
+                .help("Number of retry attempts in case of failure")
+                .short('r')
+                .long("retry"),
         )
         .get_matches();
 
@@ -74,6 +81,7 @@ async fn main() {
     let timeout = matches
         .get_one::<String>("timeout")
         .map_or(10, |t| t.parse::<u64>().unwrap_or(10));
+    let retry = matches.get_one::<String>("retry");
     // Init HTTP client
     let client: Client = Client::builder()
         .timeout(Duration::from_secs(timeout))
@@ -115,32 +123,74 @@ async fn main() {
         req_builder = req_builder.body(data.clone());
     }
 
-    // Send the request and await the response
-    match req_builder.send().await {
-        Ok(response) => {
-            if verbose.is_some() && verbose.unwrap().to_string() == "t" {
-                // Verbose mode
-                println!("Request URL: {}", url);
-                println!("Status Code: {}", response.status());
-                println!("Response Headers:\n{:#?}", response.headers());
-            }
+    let mut response: Option<Response> = None;
 
-            if silent.unwrap().to_string() != "t" {
-                let body = response.text().await.unwrap();
-                println!();
-                println!("{}", body);
+    if retry.is_some() {
+        // Retry setup
+        let retry_count = retry.unwrap().parse::<u32>().unwrap();
+        let mut retry_attempts = 0;
+
+        while retry_attempts < retry_count {
+            retry_attempts += 1;
+
+            let result = req_builder.try_clone().unwrap().send().await;
+
+            match result {
+                Ok(res) => {
+                    response = Some(res);
+                    break;
+                }
+                Err(err) => {
+                    if retry_attempts == retry_count {
+                        eprintln!("Request failed after {} attempts: {}", retry_count, err);
+                        return;
+                    } else if verbose.is_some() && verbose.unwrap().to_string() == "t" {
+                        eprintln!("Attempt {} failed, retrying... ({})", retry_attempts, err);
+                    }
+                }
             }
         }
-        Err(e) => {
-            if e.is_timeout() {
-                // Red color for error
-                eprintln!(
-                    "\x1b[91mError\x1b[0m: Request timed out after {} seconds.",
-                    timeout
-                );
-            } else {
-                // Red color for error
-                eprintln!("\x1b[91mError\x1b[0m: Failed to send request: {}", e);
+        let res = response.unwrap();
+        if verbose.is_some() && verbose.unwrap().to_string() == "t" {
+            // Verbose mode
+            println!("Request URL: {}", url);
+            println!("Status Code: {}", res.status());
+            println!("Response Headers:\n{:#?}", res.headers());
+        }
+
+        if silent.unwrap().to_string() != "t" {
+            let body = res.text().await.unwrap();
+            println!();
+            println!("{}", body);
+        }
+    } else {
+        // Send the request and await the response
+        match req_builder.send().await {
+            Ok(response) => {
+                if verbose.is_some() && verbose.unwrap().to_string() == "t" {
+                    // Verbose mode
+                    println!("Request URL: {}", url);
+                    println!("Status Code: {}", response.status());
+                    println!("Response Headers:\n{:#?}", response.headers());
+                }
+
+                if silent.unwrap().to_string() != "t" {
+                    let body = response.text().await.unwrap();
+                    println!();
+                    println!("{}", body);
+                }
+            }
+            Err(e) => {
+                if e.is_timeout() {
+                    // Red color for error
+                    eprintln!(
+                        "\x1b[91mError\x1b[0m: Request timed out after {} seconds.",
+                        timeout
+                    );
+                } else {
+                    // Red color for error
+                    eprintln!("\x1b[91mError\x1b[0m: Failed to send request: {}", e);
+                }
             }
         }
     }
