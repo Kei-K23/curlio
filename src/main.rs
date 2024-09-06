@@ -74,14 +74,15 @@ async fn main() {
     let method = matches.get_one::<String>("method").unwrap();
     let headers = matches.get_one::<String>("header");
     let data = matches.get_one::<String>("data");
-    let verbose = matches.get_one::<String>("verbose");
-    let silent = matches.get_one::<String>("silent");
-
-    // Parse timeout
+    let verbose = matches.get_one::<String>("verbose").unwrap() == "t";
+    let silent = matches.get_one::<String>("silent").unwrap() == "t";
     let timeout = matches
         .get_one::<String>("timeout")
         .map_or(10, |t| t.parse::<u64>().unwrap_or(10));
-    let retry = matches.get_one::<String>("retry");
+    let retry_count = matches
+        .get_one::<String>("retry")
+        .map_or(0, |r| r.parse::<u32>().unwrap_or(0));
+
     // Init HTTP client
     let client: Client = Client::builder()
         .timeout(Duration::from_secs(timeout))
@@ -97,101 +98,71 @@ async fn main() {
         _ => panic!("Unsupported method!"),
     };
 
-    // Init headers map
-    let mut header_map: HeaderMap = HeaderMap::new();
-
+    // Init headers map and add headers if provided
     if let Some(headers_json) = headers {
-        // Parse json
         let parsed_headers: Value = from_str(headers_json).unwrap();
+        let mut header_map: HeaderMap = HeaderMap::new();
 
         if let Value::Object(header_obj) = parsed_headers {
             for (key, value) in header_obj {
                 let header_key: HeaderName = HeaderName::from_str(&key).unwrap();
                 let header_value = HeaderValue::from_str(value.as_str().unwrap()).unwrap();
-
-                // Add header key and value
                 header_map.insert(header_key, header_value);
             }
         }
+        req_builder = req_builder.headers(header_map);
     }
-
-    // Add headers to the request
-    req_builder = req_builder.headers(header_map);
 
     // Attach data as the request body if provided
     if let Some(data) = data {
         req_builder = req_builder.body(data.clone());
     }
 
-    let mut response: Option<Response> = None;
-
-    if retry.is_some() {
-        // Retry setup
-        let retry_count = retry.unwrap().parse::<u32>().unwrap();
-        let mut retry_attempts = 0;
-
-        while retry_attempts < retry_count {
-            retry_attempts += 1;
-
-            let result = req_builder.try_clone().unwrap().send().await;
-
-            match result {
-                Ok(res) => {
-                    response = Some(res);
-                    break;
-                }
-                Err(err) => {
-                    if retry_attempts == retry_count {
-                        eprintln!("Request failed after {} attempts: {}", retry_count, err);
-                        return;
-                    } else if verbose.is_some() && verbose.unwrap().to_string() == "t" {
-                        eprintln!("Attempt {} failed, retrying... ({})", retry_attempts, err);
-                    }
-                }
-            }
-        }
-        let res = response.unwrap();
-        if verbose.is_some() && verbose.unwrap().to_string() == "t" {
-            // Verbose mode
-            println!("Request URL: {}", url);
-            println!("Status Code: {}", res.status());
-            println!("Response Headers:\n{:#?}", res.headers());
-        }
-
-        if silent.unwrap().to_string() != "t" {
-            let body = res.text().await.unwrap();
-            println!();
-            println!("{}", body);
-        }
+    // Send the request
+    let response = if retry_count > 0 {
+        send_with_retry(req_builder, retry_count, verbose).await
     } else {
-        // Send the request and await the response
-        match req_builder.send().await {
-            Ok(response) => {
-                if verbose.is_some() && verbose.unwrap().to_string() == "t" {
-                    // Verbose mode
-                    println!("Request URL: {}", url);
-                    println!("Status Code: {}", response.status());
-                    println!("Response Headers:\n{:#?}", response.headers());
-                }
+        req_builder.send().await.ok()
+    };
 
-                if silent.unwrap().to_string() != "t" {
-                    let body = response.text().await.unwrap();
-                    println!();
-                    println!("{}", body);
+    // Print response details
+    if let Some(res) = response {
+        handle_response(res, verbose, silent).await;
+    }
+}
+
+// Retry function
+async fn send_with_retry(
+    req_builder: reqwest::RequestBuilder,
+    retry_count: u32,
+    verbose: bool,
+) -> Option<Response> {
+    for attempt in 1..=retry_count {
+        match req_builder.try_clone().unwrap().send().await {
+            Ok(response) => return Some(response),
+            Err(err) => {
+                if attempt == retry_count {
+                    eprintln!("Request failed after {} attempts: {}", retry_count, err);
+                    return None;
                 }
-            }
-            Err(e) => {
-                if e.is_timeout() {
-                    // Red color for error
-                    eprintln!(
-                        "\x1b[91mError\x1b[0m: Request timed out after {} seconds.",
-                        timeout
-                    );
-                } else {
-                    // Red color for error
-                    eprintln!("\x1b[91mError\x1b[0m: Failed to send request: {}", e);
+                if verbose {
+                    eprintln!("Attempt {} failed, retrying... ({})", attempt, err);
                 }
             }
         }
+    }
+    None
+}
+
+// Handle and print response
+async fn handle_response(response: Response, verbose: bool, silent: bool) {
+    if verbose {
+        println!("Status Code: {}", response.status());
+        println!("Response Headers:\n{:#?}", response.headers());
+    }
+
+    if !silent {
+        let body = response.text().await.unwrap();
+        println!("{}", body);
     }
 }
