@@ -4,7 +4,7 @@ use reqwest::{
     Client,
 };
 use serde_json::{from_str, Value};
-use std::str::FromStr;
+use std::{str::FromStr, time::Duration};
 
 #[tokio::main]
 async fn main() {
@@ -54,6 +54,12 @@ async fn main() {
                 .long("silent")
                 .default_value("f"),
         )
+        .arg(
+            Arg::new("timeout")
+                .help("Set a timeout for the request (in seconds)")
+                .short('t')
+                .long("timeout"),
+        )
         .get_matches();
 
     // Get the values
@@ -64,8 +70,15 @@ async fn main() {
     let verbose = matches.get_one::<String>("verbose");
     let silent = matches.get_one::<String>("silent");
 
+    // Parse timeout
+    let timeout = matches
+        .get_one::<String>("timeout")
+        .map_or(10, |t| t.parse::<u64>().unwrap_or(10));
     // Init HTTP client
-    let client: Client = Client::new();
+    let client: Client = Client::builder()
+        .timeout(Duration::from_secs(timeout))
+        .build()
+        .unwrap();
 
     // Create request builder
     let mut req_builder = match method.to_uppercase().as_str() {
@@ -76,8 +89,8 @@ async fn main() {
         _ => panic!("Unsupported method!"),
     };
 
-    // Set default headers
-    let mut header_map = HeaderMap::new();
+    // Init headers map
+    let mut header_map: HeaderMap = HeaderMap::new();
 
     if let Some(headers_json) = headers {
         // Parse json
@@ -103,18 +116,32 @@ async fn main() {
     }
 
     // Send the request and await the response
-    let response = req_builder.send().await.unwrap();
+    match req_builder.send().await {
+        Ok(response) => {
+            if verbose.is_some() && verbose.unwrap().to_string() == "t" {
+                // Verbose mode
+                println!("Request URL: {}", url);
+                println!("Status Code: {}", response.status());
+                println!("Response Headers:\n{:#?}", response.headers());
+            }
 
-    if verbose.is_some() && verbose.unwrap().to_string() == "t" {
-        // Verbose mode
-        println!("Request URL: {}", url);
-        println!("Status Code: {}", response.status());
-        println!("Response Headers:\n{:#?}", response.headers());
-    }
-
-    if silent.unwrap().to_string() != "t" {
-        let body = response.text().await.unwrap();
-        println!();
-        println!("{}", body);
+            if silent.unwrap().to_string() != "t" {
+                let body = response.text().await.unwrap();
+                println!();
+                println!("{}", body);
+            }
+        }
+        Err(e) => {
+            if e.is_timeout() {
+                // Red color for error
+                eprintln!(
+                    "\x1b[91mError\x1b[0m: Request timed out after {} seconds.",
+                    timeout
+                );
+            } else {
+                // Red color for error
+                eprintln!("\x1b[91mError\x1b[0m: Failed to send request: {}", e);
+            }
+        }
     }
 }
