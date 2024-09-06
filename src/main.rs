@@ -1,5 +1,9 @@
 use clap::{Arg, Command};
-use reqwest::{header::HeaderMap, Client};
+use reqwest::{
+    header::{HeaderMap, HeaderName, HeaderValue},
+    Client,
+};
+use serde_json::json;
 use std::str::FromStr;
 
 #[tokio::main]
@@ -23,16 +27,16 @@ async fn main() {
                 .default_value("GET"),
         )
         .arg(
-            Arg::new("header")
-                .help("Add headers to the request")
-                .short('H')
-                .long("header"),
-        )
-        .arg(
             Arg::new("data")
                 .short('d')
                 .long("data")
                 .help("Sends the specified data in a POST request"),
+        )
+        .arg(
+            Arg::new("header")
+                .help("Add headers to the request")
+                .short('H')
+                .long("header"),
         )
         .get_matches();
 
@@ -42,42 +46,45 @@ async fn main() {
     let headers = matches.get_many::<String>("header");
     let data = matches.get_one::<String>("data");
 
-    // Init http client
+    // Init HTTP client
     let client: Client = Client::new();
+
     // Create request builder
     let mut req_builder = match method.to_uppercase().as_str() {
         "GET" => client.get(url),
         "POST" => client.post(url),
+        "PUT" => client.put(url),
+        "DELETE" => client.delete(url),
         _ => panic!("Unsupported method!"),
     };
 
-    // Check headers has Some or None
+    // Set default headers
+    let mut header_map = HeaderMap::new();
     if let Some(headers) = headers {
-        // Create new header map
-        let mut header_map = HeaderMap::new();
-
         for header in headers {
-            // Expect headers in the format: "Key: Value"
             let parts: Vec<&str> = header.splitn(2, ": ").collect();
             if parts.len() == 2 {
-                let key = reqwest::header::HeaderName::from_str(parts[0]).unwrap();
-
-                let value = reqwest::header::HeaderValue::from_str(parts[1]).unwrap();
-                // Insert to header map
+                let key = HeaderName::from_str(parts[0]).unwrap();
+                let value = HeaderValue::from_str(parts[1]).unwrap();
                 header_map.insert(key, value);
             }
         }
-        req_builder = req_builder.headers(header_map);
     }
 
-    // Check data has Some or None, if exist them add to request body
+    // Add headers to the request
+    req_builder = req_builder.headers(header_map);
+
+    // Attach data as the request body if provided
     if let Some(data) = data {
-        req_builder = req_builder.body(data.to_string())
+        // Parse the data into JSON string
+        let json_body = json!(data);
+        req_builder = req_builder.body(json_body.to_string());
     }
 
-    // Send the request and print the response
+    // Send the request and await the response
     let response = req_builder.send().await.unwrap();
     let body = response.text().await.unwrap();
 
-    println!("Response: {}", body);
+    println!();
+    println!("{}", body);
 }
