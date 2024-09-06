@@ -3,7 +3,7 @@ use reqwest::{
     header::{HeaderMap, HeaderName, HeaderValue},
     Client,
 };
-use serde_json::{from_str, json, Value};
+use serde_json::{from_str, Value};
 use std::str::FromStr;
 
 #[tokio::main]
@@ -81,9 +81,7 @@ async fn main() {
 
     // Attach data as the request body if provided
     if let Some(data) = data {
-        // Parse the data into JSON string
-        let json_body = json!(data);
-        req_builder = req_builder.body(json_body.to_string());
+        req_builder = req_builder.body(data.clone());
     }
 
     // Send the request and await the response
