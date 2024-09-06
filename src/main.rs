@@ -3,15 +3,15 @@ use reqwest::{
     header::{HeaderMap, HeaderName, HeaderValue},
     Client,
 };
-use serde_json::json;
+use serde_json::{from_str, json, Value};
 use std::str::FromStr;
 
 #[tokio::main]
 async fn main() {
     // CLI interface
-    let matches = Command::new("cURL Rust CLI")
-        .version("0.1")
-        .about("A cURL implementation in Rust")
+    let matches = Command::new("rCURL")
+        .version("0.1.0")
+        .about("rCURL is a cURL implementation in Rust")
         .author("Kei-K23")
         .arg(
             Arg::new("url")
@@ -43,7 +43,7 @@ async fn main() {
     // Get the values
     let url = matches.get_one::<String>("url").unwrap();
     let method = matches.get_one::<String>("method").unwrap();
-    let headers = matches.get_many::<String>("header");
+    let headers = matches.get_one::<String>("header");
     let data = matches.get_one::<String>("data");
 
     // Init HTTP client
@@ -60,13 +60,18 @@ async fn main() {
 
     // Set default headers
     let mut header_map = HeaderMap::new();
-    if let Some(headers) = headers {
-        for header in headers {
-            let parts: Vec<&str> = header.splitn(2, ": ").collect();
-            if parts.len() == 2 {
-                let key = HeaderName::from_str(parts[0]).unwrap();
-                let value = HeaderValue::from_str(parts[1]).unwrap();
-                header_map.insert(key, value);
+
+    if let Some(headers_json) = headers {
+        // Parse json
+        let parsed_headers: Value = from_str(headers_json).unwrap();
+
+        if let Value::Object(header_obj) = parsed_headers {
+            for (key, value) in header_obj {
+                let header_key: HeaderName = HeaderName::from_str(&key).unwrap();
+                let header_value = HeaderValue::from_str(value.as_str().unwrap()).unwrap();
+
+                // Add header key and value
+                header_map.insert(header_key, header_value);
             }
         }
     }
