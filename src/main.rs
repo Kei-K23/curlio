@@ -108,6 +108,7 @@ async fn main() {
         "GET" => client.get(url),
         "POST" => client.post(url),
         "PUT" => client.put(url),
+        "PATCH" => client.patch(url),
         "DELETE" => client.delete(url),
         _ => panic!("Unsupported method!"),
     };
