@@ -69,4 +69,15 @@ async fn main() {
         }
         req_builder = req_builder.headers(header_map);
     }
+
+    // Check data has Some or None, if exist them add to request body
+    if let Some(data) = data {
+        req_builder = req_builder.body(data.to_string())
+    }
+
+    // Send the request and print the response
+    let response = req_builder.send().await.unwrap();
+    let body = response.text().await.unwrap();
+
+    println!("Response: {}", body);
 }
