@@ -1,7 +1,7 @@
 use clap::{Arg, Command};
 use reqwest::{
     header::{HeaderMap, HeaderName, HeaderValue},
-    Client, Response,
+    Client, RequestBuilder, Response,
 };
 use serde_json::{from_str, Value};
 use std::{str::FromStr, time::Duration};
@@ -58,8 +58,7 @@ async fn main() {
             Arg::new("timeout")
                 .help("Set a timeout for the request (in seconds)")
                 .short('t')
-                .long("timeout")
-                .default_value("10"),
+                .long("timeout"),
         )
         .arg(
             Arg::new("retry")
@@ -69,25 +68,40 @@ async fn main() {
         )
         .get_matches();
 
-    // Get the values
+    // Get url value
     let url = matches.get_one::<String>("url").unwrap();
+    // Get http request method
     let method = matches.get_one::<String>("method").unwrap();
+    // Get http request headers
     let headers = matches.get_one::<String>("header");
+    // Get data (use in request body)
     let data = matches.get_one::<String>("data");
+    // Get verbose value
     let verbose = matches.get_one::<String>("verbose").unwrap() == "t";
+    // Get silent value
     let silent = matches.get_one::<String>("silent").unwrap() == "t";
-    let timeout = matches
-        .get_one::<String>("timeout")
-        .map_or(10, |t| t.parse::<u64>().unwrap_or(10));
+    // Get timeout value
+    let timeout = matches.get_one::<String>("timeout");
+    // Get retry value and parse to int (seconds)
     let retry_count = matches
         .get_one::<String>("retry")
         .map_or(0, |r| r.parse::<u32>().unwrap_or(0));
 
     // Init HTTP client
-    let client: Client = Client::builder()
-        .timeout(Duration::from_secs(timeout))
-        .build()
-        .unwrap();
+    let client: Client;
+
+    if let Some(timeout_sec) = timeout {
+        // Case for timeout argument pass
+        client = Client::builder()
+            .timeout(Duration::from_secs(
+                timeout_sec.parse::<u64>().unwrap_or(10),
+            ))
+            .build()
+            .unwrap();
+    } else {
+        // Case for timeout argument not pass
+        client = Client::new();
+    }
 
     // Create request builder
     let mut req_builder = match method.to_uppercase().as_str() {
@@ -107,9 +121,11 @@ async fn main() {
             for (key, value) in header_obj {
                 let header_key: HeaderName = HeaderName::from_str(&key).unwrap();
                 let header_value = HeaderValue::from_str(value.as_str().unwrap()).unwrap();
+                // Add header key value to header map
                 header_map.insert(header_key, header_value);
             }
         }
+        // Add headers to request
         req_builder = req_builder.headers(header_map);
     }
 
@@ -122,7 +138,13 @@ async fn main() {
     let response = if retry_count > 0 {
         send_with_retry(req_builder, retry_count, verbose).await
     } else {
-        req_builder.send().await.ok()
+        match req_builder.send().await {
+            Ok(res) => Some(res),
+            Err(err) => {
+                eprintln!("Request failed: {}", err);
+                None
+            }
+        }
     };
 
     // Print response details
@@ -133,7 +155,7 @@ async fn main() {
 
 // Retry function
 async fn send_with_retry(
-    req_builder: reqwest::RequestBuilder,
+    req_builder: RequestBuilder,
     retry_count: u32,
     verbose: bool,
 ) -> Option<Response> {
