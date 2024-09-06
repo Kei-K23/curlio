@@ -47,6 +47,13 @@ async fn main() {
                 .long("verbose")
                 .default_value("f"),
         )
+        .arg(
+            Arg::new("silent")
+                .help("Suppress all output <f for False/ t for True>")
+                .short('s')
+                .long("silent")
+                .default_value("f"),
+        )
         .get_matches();
 
     // Get the values
@@ -55,6 +62,7 @@ async fn main() {
     let headers = matches.get_one::<String>("header");
     let data = matches.get_one::<String>("data");
     let verbose = matches.get_one::<String>("verbose");
+    let silent = matches.get_one::<String>("silent");
 
     // Init HTTP client
     let client: Client = Client::new();
@@ -104,7 +112,9 @@ async fn main() {
         println!("Response Headers:\n{:#?}", response.headers());
     }
 
-    let body = response.text().await.unwrap();
-    println!();
-    println!("{}", body);
+    if silent.unwrap().to_string() != "t" {
+        let body = response.text().await.unwrap();
+        println!();
+        println!("{}", body);
+    }
 }
