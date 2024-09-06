@@ -1,6 +1,9 @@
 use clap::{Arg, Command};
+use reqwest::{header::HeaderMap, Client};
+use std::str::FromStr;
 
-fn main() {
+#[tokio::main]
+async fn main() {
     // CLI interface
     let matches = Command::new("cURL Rust CLI")
         .version("0.1")
@@ -25,10 +28,45 @@ fn main() {
                 .short('H')
                 .long("header"),
         )
+        .arg(
+            Arg::new("data")
+                .short('d')
+                .long("data")
+                .help("Sends the specified data in a POST request"),
+        )
         .get_matches();
 
     // Get the values
     let url = matches.get_one::<String>("url").unwrap();
     let method = matches.get_one::<String>("method").unwrap();
-    let headers = matches.get_one::<String>("header").unwrap();
+    let headers = matches.get_many::<String>("header");
+    let data = matches.get_one::<String>("data");
+
+    // Init http client
+    let client: Client = Client::new();
+    // Create request builder
+    let mut req_builder = match method.to_uppercase().as_str() {
+        "GET" => client.get(url),
+        "POST" => client.post(url),
+        _ => panic!("Unsupported method!"),
+    };
+
+    // Check headers has Some or None
+    if let Some(headers) = headers {
+        // Create new header map
+        let mut header_map = HeaderMap::new();
+
+        for header in headers {
+            // Expect headers in the format: "Key: Value"
+            let parts: Vec<&str> = header.splitn(2, ": ").collect();
+            if parts.len() == 2 {
+                let key = reqwest::header::HeaderName::from_str(parts[0]).unwrap();
+
+                let value = reqwest::header::HeaderValue::from_str(parts[1]).unwrap();
+                // Insert to header map
+                header_map.insert(key, value);
+            }
+        }
+        req_builder = req_builder.headers(header_map);
+    }
 }
