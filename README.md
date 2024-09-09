@@ -16,6 +16,14 @@
 
 ## Installation
 
+This CLI is published with `Cargo`. You can easily download with `cargo install curlio` and accept the binary from everywhere.
+
+```bash
+cargo install curlio
+```
+
+## Local setup
+
 To use `curlio`, you need to have Rust installed on your system. You can install Rust from [here](https://www.rust-lang.org/tools/install).
 
 Once Rust is installed, clone the repository and build the project:
@@ -114,6 +122,11 @@ If retries are enabled, it will retry the request up to the specified count, and
 ```bash
 Attempt 1 failed, retrying... (<Error message>)
 ```
+
+## Todo
+
+- [ ] Make binary for other installer methods.
+- [ ] Add test cases to cover every use cases.
 
 ## License 
 
