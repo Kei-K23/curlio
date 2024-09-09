@@ -127,6 +127,7 @@ Attempt 1 failed, retrying... (<Error message>)
 
 - [ ] Make binary for other installer methods.
 - [ ] Add test cases to cover every use cases.
+- [ ] other...
 
 ## License 
 
