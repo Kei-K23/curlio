@@ -1,6 +1,6 @@
 [package]
 name = "curlio"
-version = "0.2.1"
+version = "0.2.2"
 edition = "2021"
 authors = ["Kei-K23 <arkar.dev.kei@gmail.com>"]
 license = "MIT"
@@ -15,4 +15,3 @@ categories = ["command-line-utilities"]
 clap = { version = "4.5.17", features = ["derive"] }
 reqwest = { version = "0.12.7", features = ["json", "multipart", "blocking", "stream"] }
 serde_json = "1.0.128"
-tokio = { version = "1", features = ["full"] }
