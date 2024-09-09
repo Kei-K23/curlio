@@ -81,6 +81,12 @@ fn main() {
                 .short('A')
                 .long("user-agent"),
         )
+        .arg(
+            Arg::new("basic_auth")
+                .help("Provide basic authentication in the format `username:password`")
+                .short('u')
+                .long("user"),
+        )
         .get_matches();
 
     // Get url value
@@ -99,6 +105,7 @@ fn main() {
     let silent = matches.get_one::<String>("silent").unwrap() == "s";
     let store: Option<&String> = matches.get_one::<String>("store");
     let user_agent: Option<&String> = matches.get_one::<String>("user_agent");
+    let basic_auth: Option<&String> = matches.get_one::<String>("basic_auth");
 
     // Get timeout value
     let timeout = matches.get_one::<String>("timeout");
@@ -157,6 +164,15 @@ fn main() {
     // Set custom User-Agent
     if let Some(user_agent_value) = user_agent {
         req_builder = req_builder.header("User-Agent", user_agent_value);
+    }
+
+    // Set basic authentication
+    if let Some(auth_value) = basic_auth {
+        // Define basic authentication
+        req_builder = req_builder.basic_auth(
+            auth_value.split(':').next().unwrap(),
+            Some(auth_value.split(':').nth(1).unwrap()),
+        );
     }
 
     // When -F flag is used, handle Multipart form (file upload)
