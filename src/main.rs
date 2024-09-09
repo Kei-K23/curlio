@@ -1,13 +1,10 @@
 use clap::{Arg, Command};
-use reqwest::{
-    header::{HeaderMap, HeaderName, HeaderValue},
-    Client, RequestBuilder, Response,
-};
+use reqwest::blocking::{multipart, Client, RequestBuilder, Response};
+use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
 use serde_json::{from_str, Value};
-use std::{str::FromStr, time::Duration};
+use std::{path::Path, str::FromStr, time::Duration};
 
-#[tokio::main]
-async fn main() {
+fn main() {
     // CLI interface
     let matches = Command::new("rCURL")
         .version("0.1.0")
@@ -33,6 +30,12 @@ async fn main() {
                 .help("Sends the specified data in a POST request"),
         )
         .arg(
+            Arg::new("form")
+                .short('F')
+                .long("form")
+                .help("Sends multiple form data using JSON structured format (use file path for file uploading)"),
+        )
+        .arg(
             Arg::new("header")
                 .help("Add headers to the request")
                 .short('H')
@@ -40,9 +43,7 @@ async fn main() {
         )
         .arg(
             Arg::new("verbose")
-                .help(
-                    "Show detail information about request and response <f for False/ t for True>",
-                )
+                .help("Show detail information about request and response <f for False/ t for True>")
                 .short('v')
                 .long("verbose")
                 .default_value("f"),
@@ -76,10 +77,12 @@ async fn main() {
     let headers = matches.get_one::<String>("header");
     // Get data (use in request body)
     let data = matches.get_one::<String>("data");
+    // Get form data (for file upload or form submission)
+    let form_data = matches.get_one::<String>("form");
     // Get verbose value
     let verbose = matches.get_one::<String>("verbose").unwrap() == "t";
     // Get silent value
-    let silent = matches.get_one::<String>("silent").unwrap() == "t";
+    let silent = matches.get_one::<String>("silent").unwrap() == "s";
     // Get timeout value
     let timeout = matches.get_one::<String>("timeout");
     // Get retry value and parse to int (seconds)
@@ -99,7 +102,6 @@ async fn main() {
             .build()
             .unwrap();
     } else {
-        // Case for timeout argument not pass
         client = Client::new();
     }
 
@@ -135,11 +137,41 @@ async fn main() {
         req_builder = req_builder.body(data.clone());
     }
 
-    // Send the request
+    // When -F flag is used, handle Multipart form (file upload)
+    if let Some(form_json) = form_data {
+        // Parse json string to value
+        let parsed_form: Value = from_str(form_json).unwrap();
+        // Init multipart form
+        let mut form_part = multipart::Form::new();
+
+        if let Value::Object(form_obj) = parsed_form {
+            // Loop through the Map
+            for (key, value) in form_obj {
+                if value.is_string() {
+                    // Get form value
+                    let form_value = value.as_str().unwrap();
+
+                    // Check if form value is a file
+                    if Path::new(form_value).exists() {
+                        // Add file path to form part
+                        form_part = form_part.file(key.clone(), form_value).unwrap();
+                    } else {
+                        // Normal form part
+                        form_part = form_part.text(key.clone(), form_value.to_string());
+                    }
+                }
+            }
+        }
+
+        // Add multipart form instance to req builder
+        req_builder = req_builder.multipart(form_part);
+    }
+
+    // Send the request synchronously
     let response = if retry_count > 0 {
-        send_with_retry(req_builder, retry_count, verbose).await
+        send_with_retry(req_builder, retry_count, verbose)
     } else {
-        match req_builder.send().await {
+        match req_builder.send() {
             Ok(res) => Some(res),
             Err(err) => {
                 eprintln!("Request failed: {}", err);
@@ -150,18 +182,18 @@ async fn main() {
 
     // Print response details
     if let Some(res) = response {
-        handle_response(res, verbose, silent).await;
+        handle_response(res, verbose, silent);
     }
 }
 
-// Retry function
-async fn send_with_retry(
+// Retry function (blocking)
+fn send_with_retry(
     req_builder: RequestBuilder,
     retry_count: u32,
     verbose: bool,
 ) -> Option<Response> {
     for attempt in 1..=retry_count {
-        match req_builder.try_clone().unwrap().send().await {
+        match req_builder.try_clone().unwrap().send() {
             Ok(response) => return Some(response),
             Err(err) => {
                 if attempt == retry_count {
@@ -177,15 +209,15 @@ async fn send_with_retry(
     None
 }
 
-// Handle and print response
-async fn handle_response(response: Response, verbose: bool, silent: bool) {
+// Handle and print response (blocking)
+fn handle_response(response: Response, verbose: bool, silent: bool) {
     if verbose {
         println!("Status Code: {}", response.status());
         println!("Response Headers:\n{:#?}", response.headers());
     }
 
     if !silent {
-        let body = response.text().await.unwrap();
+        let body = response.text().unwrap();
         println!("{}", body);
     }
 }
