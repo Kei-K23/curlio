@@ -1,7 +1,7 @@
 use clap::{Arg, Command};
 use reqwest::blocking::{multipart, Client, RequestBuilder, Response};
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
-use serde_json::{from_str, Value};
+use serde_json::{from_str, to_string_pretty, Value};
 use std::fs::File;
 use std::io::Write;
 use std::{path::Path, str::FromStr, time::Duration};
@@ -237,11 +237,16 @@ fn handle_response(response: Response, verbose: bool, silent: bool, store: Optio
         println!("Status Code: {}", response.status());
         println!("Response Headers:\n{:#?}", response.headers());
     }
-    let body = response.text().unwrap();
 
+    let body = response.text().unwrap();
     // If not silent mode, show body response
     if !silent {
-        println!("{}", body);
+        if let Ok(res_json) = from_str::<Value>(&body) {
+            // Pretty the response when output
+            println!("{}", to_string_pretty(&res_json).unwrap());
+        } else {
+            println!("{}", body);
+        }
     }
 
     // Store the response to file
