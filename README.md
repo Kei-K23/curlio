@@ -1,6 +1,6 @@
 # rCURL - A cURL Implementation in Rust
 
-`rCURL` is a command-line tool built in Rust that mimics the functionality of `cURL`. It allows you to send HTTP requests to URLs (allow basic and essential HTTP methods GET, POST, PUT, PATCH, DELETE), customize headers, send request body data (including JSON request and multipart form with file uploading), store the response data to a file, handle timeouts, and retry requests.
+`rCURL` is a command-line tool built in `Rust` that mimics the functionality of `cURL`. It allows you to send HTTP requests to URLs (allow basic and essential HTTP methods GET, POST, PUT, PATCH, DELETE), customize headers, send request body data (including JSON request and multipart form with file uploading), store the response data to a file, handle timeouts, and retry requests.
 
 ## Features
 
