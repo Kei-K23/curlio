@@ -2,6 +2,8 @@ use clap::{Arg, Command};
 use reqwest::blocking::{multipart, Client, RequestBuilder, Response};
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
 use serde_json::{from_str, Value};
+use std::fs::File;
+use std::io::Write;
 use std::{path::Path, str::FromStr, time::Duration};
 
 fn main() {
@@ -218,6 +220,16 @@ fn handle_response(response: Response, verbose: bool, silent: bool) {
 
     if !silent {
         let body = response.text().unwrap();
+
+        // match File::create("products.json") {
+        //     Ok(mut file) => {
+        //         if let Err(err) = file.write_all(body.as_bytes()) {
+        //             eprintln!("Error writing to file: {}", err);
+        //         }
+        //     }
+        //     Err(err) => eprintln!("Error creating file: {}", err),
+        // }
+
         println!("{}", body);
     }
 }
