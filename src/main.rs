@@ -94,6 +94,11 @@ fn main() {
                 .long("location")
                 .default_value("f")
         )
+        .arg(
+            Arg::new("proxy")
+                .help("Use HTTP/HTTPS proxy")
+                .long("proxy")
+        )
         .get_matches();
 
     // Get url value
@@ -113,6 +118,7 @@ fn main() {
     let store: Option<&String> = matches.get_one::<String>("store");
     let user_agent: Option<&String> = matches.get_one::<String>("user_agent");
     let basic_auth: Option<&String> = matches.get_one::<String>("basic_auth");
+    let proxy: Option<&String> = matches.get_one::<String>("proxy");
     let follow_redirects = matches.get_one::<String>("follow").unwrap() == "t";
 
     // Get timeout value
@@ -131,8 +137,14 @@ fn main() {
         ));
     }
 
+    // Setup follow redirects
     if follow_redirects {
         client_builder = client_builder.redirect(reqwest::redirect::Policy::limited(10));
+    }
+
+    // Setup proxy
+    if let Some(proxy_schema) = proxy {
+        client_builder = client_builder.proxy(reqwest::Proxy::all(proxy_schema).unwrap());
     }
 
     let client = client_builder.build().unwrap();
