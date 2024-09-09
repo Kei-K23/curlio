@@ -75,6 +75,12 @@ fn main() {
                 .short('S')
                 .long("store"),
         )
+        .arg(
+            Arg::new("user_agent")
+                .help("Specify custom User-Agent")
+                .short('A')
+                .long("user-agent"),
+        )
         .get_matches();
 
     // Get url value
@@ -92,6 +98,7 @@ fn main() {
     // Get silent value
     let silent = matches.get_one::<String>("silent").unwrap() == "s";
     let store: Option<&String> = matches.get_one::<String>("store");
+    let user_agent: Option<&String> = matches.get_one::<String>("user_agent");
 
     // Get timeout value
     let timeout = matches.get_one::<String>("timeout");
@@ -147,6 +154,11 @@ fn main() {
         req_builder = req_builder.body(data.clone());
     }
 
+    // Set custom User-Agent
+    if let Some(user_agent_value) = user_agent {
+        req_builder = req_builder.header("User-Agent", user_agent_value);
+    }
+
     // When -F flag is used, handle Multipart form (file upload)
     if let Some(form_json) = form_data {
         // Parse json string to value
@@ -177,7 +189,7 @@ fn main() {
         req_builder = req_builder.multipart(form_part);
     }
 
-    // Send the request synchronously
+    // Send or retry (when it is in retry mode) the request
     let response = if retry_count > 0 {
         send_with_retry(req_builder, retry_count, verbose)
     } else {
