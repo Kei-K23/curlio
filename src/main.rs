@@ -87,6 +87,13 @@ fn main() {
                 .short('u')
                 .long("user"),
         )
+        .arg(
+            Arg::new("follow")
+                .help("Follow HTTP redirects <f for False/ t for True")
+                .short('L')
+                .long("location")
+                .default_value("f")
+        )
         .get_matches();
 
     // Get url value
@@ -106,6 +113,7 @@ fn main() {
     let store: Option<&String> = matches.get_one::<String>("store");
     let user_agent: Option<&String> = matches.get_one::<String>("user_agent");
     let basic_auth: Option<&String> = matches.get_one::<String>("basic_auth");
+    let follow_redirects = matches.get_one::<String>("follow").unwrap() == "t";
 
     // Get timeout value
     let timeout = matches.get_one::<String>("timeout");
@@ -114,20 +122,20 @@ fn main() {
         .get_one::<String>("retry")
         .map_or(0, |r| r.parse::<u32>().unwrap_or(0));
 
-    // Init HTTP client
-    let client: Client;
+    // Init HTTP client with optional timeout
+    let mut client_builder = Client::builder();
 
     if let Some(timeout_sec) = timeout {
-        // Case for timeout argument pass
-        client = Client::builder()
-            .timeout(Duration::from_secs(
-                timeout_sec.parse::<u64>().unwrap_or(10),
-            ))
-            .build()
-            .unwrap();
-    } else {
-        client = Client::new();
+        client_builder = client_builder.timeout(Duration::from_secs(
+            timeout_sec.parse::<u64>().unwrap_or(10),
+        ));
     }
+
+    if follow_redirects {
+        client_builder = client_builder.redirect(reqwest::redirect::Policy::limited(10));
+    }
+
+    let client = client_builder.build().unwrap();
 
     // Create request builder
     let mut req_builder = match method.to_uppercase().as_str() {
