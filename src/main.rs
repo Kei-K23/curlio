@@ -69,6 +69,12 @@ fn main() {
                 .short('r')
                 .long("retry"),
         )
+        .arg(
+            Arg::new("store")
+                .help("Store the response data to file")
+                .short('S')
+                .long("store"),
+        )
         .get_matches();
 
     // Get url value
@@ -85,6 +91,8 @@ fn main() {
     let verbose = matches.get_one::<String>("verbose").unwrap() == "t";
     // Get silent value
     let silent = matches.get_one::<String>("silent").unwrap() == "s";
+    let store: Option<&String> = matches.get_one::<String>("store");
+
     // Get timeout value
     let timeout = matches.get_one::<String>("timeout");
     // Get retry value and parse to int (seconds)
@@ -184,7 +192,7 @@ fn main() {
 
     // Print response details
     if let Some(res) = response {
-        handle_response(res, verbose, silent);
+        handle_response(res, verbose, silent, store);
     }
 }
 
@@ -212,24 +220,27 @@ fn send_with_retry(
 }
 
 // Handle and print response (blocking)
-fn handle_response(response: Response, verbose: bool, silent: bool) {
+fn handle_response(response: Response, verbose: bool, silent: bool, store: Option<&String>) {
     if verbose {
         println!("Status Code: {}", response.status());
         println!("Response Headers:\n{:#?}", response.headers());
     }
+    let body = response.text().unwrap();
 
+    // If not silent mode, show body response
     if !silent {
-        let body = response.text().unwrap();
-
-        // match File::create("products.json") {
-        //     Ok(mut file) => {
-        //         if let Err(err) = file.write_all(body.as_bytes()) {
-        //             eprintln!("Error writing to file: {}", err);
-        //         }
-        //     }
-        //     Err(err) => eprintln!("Error creating file: {}", err),
-        // }
-
         println!("{}", body);
+    }
+
+    // Store the response to file
+    if store.is_some() {
+        match File::create(store.unwrap()) {
+            Ok(mut file) => {
+                if let Err(err) = file.write_all(body.as_bytes()) {
+                    eprintln!("Error writing to file: {}", err);
+                }
+            }
+            Err(err) => eprintln!("Error creating file: {}", err),
+        }
     }
 }
