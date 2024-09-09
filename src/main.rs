@@ -8,9 +8,9 @@ use std::{path::Path, str::FromStr, time::Duration};
 
 fn main() {
     // CLI interface
-    let matches = Command::new("rCURL")
+    let matches = Command::new("curlio")
         .version("0.1.0")
-        .about("rCURL is a cURL implementation in Rust")
+        .about("curlio is a cURL implementation in Rust")
         .author("Kei-K23")
         .arg(
             Arg::new("url")
