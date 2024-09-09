@@ -40,7 +40,7 @@ cargo build --release
 Run the executable with the necessary arguments to send HTTP requests. Below are the available options:
 
 ```bash
-curlio 0.1.0
+curlio 0.2.2
 Kei-K23
 curlio is a cURL implementation in Rust
 
