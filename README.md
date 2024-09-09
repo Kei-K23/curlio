@@ -1,6 +1,6 @@
-# rCURL - A cURL Implementation in Rust
+# Curlio - A cURL Implementation in Rust
 
-`rCURL` is a command-line tool built in `Rust` that mimics the functionality of `cURL`. It allows you to send HTTP requests to URLs (allow basic and essential HTTP methods GET, POST, PUT, PATCH, DELETE), customize headers, send request body data (including JSON request and multipart form with file uploading), store the response data to a file, handle timeouts, and retry requests.
+`curlio` is a command-line tool built in `Rust` that mimics the functionality of `cURL`. It allows you to send HTTP requests to URLs (allow basic and essential HTTP methods GET, POST, PUT, PATCH, DELETE), customize headers, send request body data (including JSON request and multipart form with file uploading), store the response data to a file, handle timeouts, and retry requests.
 
 ## Features
 
@@ -16,13 +16,13 @@
 
 ## Installation
 
-To use `rCURL`, you need to have Rust installed on your system. You can install Rust from [here](https://www.rust-lang.org/tools/install).
+To use `curlio`, you need to have Rust installed on your system. You can install Rust from [here](https://www.rust-lang.org/tools/install).
 
 Once Rust is installed, clone the repository and build the project:
 
 ```bash
-git clone https://github.com/Kei-K23/rCURL.git
-cd rCURL
+git clone https://github.com/Kei-K23/curlio.git
+cd curlio
 cargo build --release
 ```
 
@@ -31,12 +31,12 @@ cargo build --release
 Run the executable with the necessary arguments to send HTTP requests. Below are the available options:
 
 ```bash
-rCURL 0.1.0
+curlio 0.1.0
 Kei-K23
-rCURL is a cURL implementation in Rust
+curlio is a cURL implementation in Rust
 
 USAGE:
-    rcurl [OPTIONS] <url>
+    curlio [OPTIONS] <url>
 
 ARGS:
     <url>    The URL to send the request to
@@ -62,43 +62,43 @@ Options:
 1. Simple GET request:
 
 ```bash
-rCURL http://example.com
+curlio http://example.com
 ```
 
 2. POST request with data:
 
 ```bash
-rCURL -X POST -d '{"key":"value"}' http://example.com
+curlio -X POST -d '{"key":"value"}' http://example.com
 ```
 
 3. GET request with custom headers:
 
 ```bash
-rCURL -H '{"Content-Type": "application/json"}' http://example.com
+curlio -H '{"Content-Type": "application/json"}' http://example.com
 ```
 
 4. GET request with a timeout:
 
 ```bash
-rCURL -t 5 http://example.com
+curlio -t 5 http://example.com
 ```
 
 5. Verbose mode:
 
 ```bash
-rCURL -v t http://example.com
+curlio -v t http://example.com
 ```
 
 6. Retry on failure:
 
 ```bash
-rCURL -r 3 http://example.com
+curlio -r 3 http://example.com
 ```
 
 7. Store the response data to file:
 
 ```bash
-rCURL "https://fakestoreapi.com/products" -X GET -H '{"Accept": "application/json"}' -S "products.json"
+curlio "https://fakestoreapi.com/products" -X GET -H '{"Accept": "application/json"}' -S "products.json"
 ```
 
 ### Error Handling
