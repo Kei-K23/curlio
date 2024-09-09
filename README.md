@@ -41,16 +41,18 @@ USAGE:
 ARGS:
     <url>    The URL to send the request to
 
-OPTIONS:
-    -d, --data <DATA>         Sends the specified data in a POST request
-    -H, --header <HEADER>     Add headers to the request in JSON format (e.g., '{"Content-Type": "application/json"}')
-    -s, --silent <SILENT>     Suppress all output <f for False/ t for True> [default: f]
-    -t, --timeout <TIMEOUT>   Set a timeout for the request (in seconds)
-    -v, --verbose <VERBOSE>   Show detailed information about request and response <f for False/ t for True> [default: f]
-    -X, --request <METHOD>    HTTP method (GET, POST, etc.) [default: GET]
-    -r, --retry <RETRY>       Number of retry attempts in case of failure
-    -h, --help                Print help information
-    -V, --version             Print version information
+Options:
+  -X, --request <method>   HTTP method (GET, POST, etc.) [default: GET]
+  -d, --data <data>        Sends the specified data in a POST request
+  -F, --form <form>        Sends multiple form data using JSON structured format (use file path for file uploading)
+  -H, --header <header>    Add headers to the request
+  -v, --verbose <verbose>  Show detail information about request and response <f for False/ t for True> [default: f]
+  -s, --silent <silent>    Suppress all output <f for False/ t for True> [default: f]
+  -t, --timeout <timeout>  Set a timeout for the request (in seconds)
+  -r, --retry <retry>      Number of retry attempts in case of failure
+  -S, --store <store>      Store the response data to file
+  -h, --help               Print help
+  -V, --version            Print version
 ```
 
 ## Examples
