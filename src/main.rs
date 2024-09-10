@@ -3,7 +3,7 @@ use reqwest::blocking::{multipart, Client, RequestBuilder, Response};
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
 use serde_json::{from_str, to_string_pretty, Value};
 use std::fs::File;
-use std::io::Write;
+use std::io::{self, Read, Write};
 use std::{path::Path, str::FromStr, time::Duration};
 
 fn main() {
@@ -89,7 +89,7 @@ fn main() {
         )
         .arg(
             Arg::new("follow")
-                .help("Follow HTTP redirects <f for False/ t for True")
+                .help("Follow HTTP redirects <f for False/ t for True>")
                 .short('L')
                 .long("location")
                 .default_value("f")
@@ -98,6 +98,12 @@ fn main() {
             Arg::new("proxy")
                 .help("Use HTTP/HTTPS proxy")
                 .long("proxy")
+        )
+        .arg(
+            Arg::new("download")
+                .help("Download file through request <f for False/ t for True>")
+                .short('D')
+                .long("download")
         )
         .get_matches();
 
@@ -120,6 +126,7 @@ fn main() {
     let basic_auth: Option<&String> = matches.get_one::<String>("basic_auth");
     let proxy: Option<&String> = matches.get_one::<String>("proxy");
     let follow_redirects = matches.get_one::<String>("follow").unwrap() == "t";
+    let file_path = matches.get_one::<String>("download");
 
     // Get timeout value
     let timeout = matches.get_one::<String>("timeout");
@@ -240,7 +247,18 @@ fn main() {
 
     // Print response details
     if let Some(res) = response {
-        handle_response(res, verbose, silent, store);
+        // Here if download the file
+        if let Some(path) = file_path {
+            // Download process
+            if let Err(err) = download_file(res, &path) {
+                eprintln!("Download failed: {}", err);
+            }
+        } else {
+            // Normal HTTP client request, response
+            handle_response(res, verbose, silent, store);
+        }
+    } else {
+        eprintln!("Failed to get response from server")
     }
 }
 
@@ -296,4 +314,40 @@ fn handle_response(response: Response, verbose: bool, silent: bool, store: Optio
             Err(err) => eprintln!("Error creating file: {}", err),
         }
     }
+}
+
+fn download_file(mut response: Response, path: &str) -> io::Result<()> {
+    // Get response content length (size) to the file
+    let total_size = response.content_length().unwrap_or(0);
+
+    // Open/create the output file
+    let mut file = File::create(path)?;
+
+    let mut downloaded_percentage: u64 = 0;
+    let mut read_buffer = [0; 8192]; // 8 KB Buffer
+
+    println!("Starting download of {} bytes...", total_size);
+
+    while let Ok(bytes_read) = response.read(&mut read_buffer) {
+        if bytes_read == 0 {
+            break;
+        }
+
+        file.write_all(&read_buffer[..bytes_read])?;
+
+        downloaded_percentage += bytes_read as u64;
+
+        if total_size > 0 {
+            let percentage = (downloaded_percentage as f64 / total_size as f64) * 100.0;
+            print!(
+                "\rProgress: {:.2}% ({}/{})",
+                percentage, downloaded_percentage, total_size
+            );
+            io::stdout().flush().unwrap(); // Force update the terminal output text
+        }
+    }
+
+    println!("Download completed successfully");
+
+    Ok(())
 }
