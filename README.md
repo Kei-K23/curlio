@@ -1,6 +1,6 @@
 # Curlio - A cURL Implementation in Rust
 
-`curlio` is a command-line tool built in `Rust` that mimics the functionality of `cURL`. It allows you to send HTTP requests to `URLs` with support for various HTTP methods, custom headers, request body data (including JSON and multipart form data with file uploads), and more. The tool also includes options for verbosity, silence, response storage, and retry mechanisms.
+`curlio` is a command-line tool built in `Rust` that mimics the functionality of `cURL`. It allows you to send HTTP requests to `URLs` with support for various HTTP methods, custom headers, request body data (including JSON and multipart form data with file uploads), and more. The tool also includes options for verbosity, silence, response storage, file download and retry mechanisms.
 
 ## Features
 
@@ -14,6 +14,7 @@
 - Timeout configuration.
 - Retry mechanism for handling failed requests.
 - Basic and Bearer authentication support.
+- Download file through request support.
 
 ## Installation
 
@@ -63,7 +64,8 @@ Options:
   -A, --user-agent <user_agent>  Specify custom User-Agent
   -u, --user <basic_auth>        Provide basic authentication in the format `username:password`
   -L, --location <follow>        Follow HTTP redirects <f for False/ t for True [default: f]
-      --proxy <proxy>            Use HTTP/HTTPS proxy
+  --proxy <proxy>            Use HTTP/HTTPS proxy
+  -D, --download <download>      Download file and save them in your file system
   -h, --help                     Print help
   -V, --version                  Print version
 ```
@@ -124,6 +126,16 @@ curlio -u "username:password" http://example.com
 
 ```bash
 curlio -H '{"Authorization": "Bearer your_token_here"}' http://example.com
+```
+
+10. Simple file download
+
+```bash
+curlio "https://file-examples.net/wp-content/uploads/2024/02/SampleTextFile_1MB.txt" -D test.txt
+
+# Example Output
+Starting download of 1023385 bytes...
+Progress: [#############################                     ] 58.20% (595608/1023385)
 ```
 
 ### Error Handling

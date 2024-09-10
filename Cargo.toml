@@ -1,10 +1,10 @@
 [package]
 name = "curlio"
-version = "0.2.2"
+version = "0.3.2"
 edition = "2021"
 authors = ["Kei-K23 <arkar.dev.kei@gmail.com>"]
 license = "MIT"
-description = "curlio is a command-line tool built in Rust that mimics the functionality of cURL. It allows you to send HTTP requests to URLs (allow basic and essential HTTP methods GET, POST, PUT, PATCH, DELETE), customize headers, send request body data (including JSON request and multipart form with file uploading), store the response data to a file, handle timeouts, and retry requests."
+description = "curlio is a command-line tool built in Rust that mimics the functionality of cURL. It allows you to send HTTP requests to URLs with support for various HTTP methods, custom headers, request body data (including JSON and multipart form data with file uploads), and more. The tool also includes options for verbosity, silence, response storage, file download and retry mechanisms."
 readme = "README.md"
 homepage = "https://github.com/Kei-K23/curlio"
 repository = "https://github.com/Kei-K23/curlio"

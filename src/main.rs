@@ -9,7 +9,7 @@ use std::{path::Path, str::FromStr, time::Duration};
 fn main() {
     // CLI interface
     let matches = Command::new("curlio")
-        .version("0.2.2")
+        .version("0.3.2")
         .about("curlio is a cURL implementation in Rust")
         .author("Kei-K23")
         .arg(
@@ -101,7 +101,7 @@ fn main() {
         )
         .arg(
             Arg::new("download")
-                .help("Download file through request <f for False/ t for True>")
+                .help("Download file and save them in your file system")
                 .short('D')
                 .long("download")
         )
@@ -354,7 +354,9 @@ fn download_file(mut response: Response, path: &str) -> io::Result<()> {
                 "\rProgress: [{bar_indicator}] {:.2}% ({}/{})",
                 percentage, downloaded_percentage, total_size
             );
-            io::stdout().flush().unwrap(); // Force update the terminal output text
+
+            // Forces the output to be printed immediately, ensuring the progress bar updates in real-time.
+            io::stdout().flush().unwrap();
         }
     }
 
