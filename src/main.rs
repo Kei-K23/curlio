@@ -324,7 +324,10 @@ fn download_file(mut response: Response, path: &str) -> io::Result<()> {
     let mut file = File::create(path)?;
 
     let mut downloaded_percentage: u64 = 0;
+    // A buffer of size 8192 bytes (8 KB) is created to hold chunks of data as we read from the response.
     let mut read_buffer = [0; 8192]; // 8 KB Buffer
+
+    let bar_width = 50; // Width of the progress bar
 
     println!("Starting download of {} bytes...", total_size);
 
@@ -338,16 +341,24 @@ fn download_file(mut response: Response, path: &str) -> io::Result<()> {
         downloaded_percentage += bytes_read as u64;
 
         if total_size > 0 {
+            // Calculate the percentage of download time
             let percentage = (downloaded_percentage as f64 / total_size as f64) * 100.0;
+
+            let filled_length =
+                (bar_width as f64 * (downloaded_percentage as f64 / total_size as f64)) as usize;
+
+            let bar_indicator = "#".repeat(filled_length) + &" ".repeat(bar_width - filled_length);
+
+            // The carriage return (\r) moves the cursor back to the beginning of the line, allowing the terminal to overwrite the current line with the new progress.
             print!(
-                "\rProgress: {:.2}% ({}/{})",
+                "\rProgress: [{bar_indicator}] {:.2}% ({}/{})",
                 percentage, downloaded_percentage, total_size
             );
             io::stdout().flush().unwrap(); // Force update the terminal output text
         }
     }
 
-    println!("Download completed successfully");
+    println!("\nDownload completed successfully");
 
     Ok(())
 }
