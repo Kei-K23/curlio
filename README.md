@@ -14,11 +14,11 @@
 - Timeout configuration.
 - Retry mechanism for handling failed requests.
 - Basic and Bearer authentication support.
-- Download file through request support.
+- Download file, zip, images and videos using `curlio` with nice informatics loading indicator.
 
 ## Installation
 
-This CLI is published with `Cargo`. You can easily download with `cargo install curlio` and accept the binary from everywhere.
+This CLI is published with `Cargo`. You can easily download and update with `cargo install curlio` command and accept the binary from everywhere.
 
 ```bash
 cargo install curlio
@@ -41,7 +41,7 @@ cargo build --release
 Run the executable with the necessary arguments to send HTTP requests. Below are the available options:
 
 ```bash
-curlio 0.4.0
+curlio 0.4.1
 Kei-K23
 curlio is a cURL implementation in Rust
 
@@ -152,7 +152,7 @@ curlio -H '{"Authorization": "Bearer your_token_here"}' http://example.com
 curlio 'https://fakestoreapi.com/products' -X GET -H '{"Accept": "application/json"}' --cookies cookies.json
 ```
 
-11. Simple file download
+11. Download files, zips, images, videos as you wish
 
 ```bash
 curlio "https://file-examples.net/wp-content/uploads/2024/02/SampleTextFile_1MB.txt" -D test.txt
