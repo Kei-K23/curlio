@@ -127,8 +127,11 @@ fn main() {
     let verbose = matches.get_one::<String>("verbose").unwrap() == "t";
     // Get silent value
     let silent = matches.get_one::<String>("silent").unwrap() == "s";
+    // Get file value to store response data
     let store: Option<&String> = matches.get_one::<String>("store");
+    // Get custom user agent value
     let user_agent: Option<&String> = matches.get_one::<String>("user_agent");
+    // Setup basic username:password authentication
     let basic_auth: Option<&String> = matches.get_one::<String>("basic_auth");
     let proxy: Option<&String> = matches.get_one::<String>("proxy");
     let follow_redirects = matches.get_one::<String>("follow").unwrap() == "t";
@@ -201,7 +204,6 @@ fn main() {
             .collect::<Vec<String>>()
             .join("; ");
 
-        println!("{}", cookie_header_value);
         // Attach the cookies value to header request
         req_builder = req_builder.header(reqwest::header::COOKIE, cookie_header_value);
     }
