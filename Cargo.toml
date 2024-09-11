@@ -12,9 +12,9 @@ keywords = ["http-client", "api-client", "cli", "curl", "tool"]
 categories = ["command-line-utilities"]
 
 [dependencies]
-clap = { version = "4.5.17", features = ["derive"] }
+clap = { version = "4.5.17" }
 cookie = "0.18.1"
-reqwest = { version = "0.12.7", features = ["json", "multipart", "blocking", "stream", "cookies"] }
+reqwest = { version = "0.12.7", features = ["json", "multipart", "blocking", "cookies"] }
 serde_json = "1.0.128"
 
 [profile.release]
