@@ -1,6 +1,6 @@
 # Curlio - A cURL Implementation in Rust
 
-`curlio` is a command-line tool built in `Rust` that mimics the functionality of `cURL`. It allows you to send HTTP requests to `URLs` with support for various HTTP methods, custom headers, request body data (including JSON and multipart form data with file uploads), and more. The tool also includes options for verbosity, silence, response storage, file download and retry mechanisms.
+`curlio` is a command-line tool built in `Rust` that mimics the functionality of `cURL`. It allows you to send HTTP requests to `URLs` with support for various HTTP methods, custom headers, request body data (including JSON and multipart form data with file uploads), and more. The tool also includes options for verbosity, silence, response storage, Download file, zip, images, videos and retry mechanisms.
 
 ## Features
 
@@ -41,7 +41,7 @@ cargo build --release
 Run the executable with the necessary arguments to send HTTP requests. Below are the available options:
 
 ```bash
-curlio 0.4.1
+curlio 0.4.2
 Kei-K23
 curlio is a cURL implementation in Rust
 

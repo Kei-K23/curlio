@@ -10,7 +10,7 @@ use std::{path::Path, str::FromStr};
 fn main() {
     // CLI interface
     let matches = Command::new("curlio")
-        .version("0.4.1")
+        .version("0.4.2")
         .about("curlio is a cURL implementation in Rust")
         .author("Kei-K23")
         .arg(
