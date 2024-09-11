@@ -1,6 +1,6 @@
 [package]
 name = "curlio"
-version = "0.3.0"
+version = "0.4.0"
 edition = "2021"
 authors = ["Kei-K23 <arkar.dev.kei@gmail.com>"]
 license = "MIT"
@@ -13,5 +13,13 @@ categories = ["command-line-utilities"]
 
 [dependencies]
 clap = { version = "4.5.17", features = ["derive"] }
-reqwest = { version = "0.12.7", features = ["json", "multipart", "blocking", "stream"] }
+cookie = "0.18.1"
+reqwest = { version = "0.12.7", features = ["json", "multipart", "blocking", "stream", "cookies"] }
 serde_json = "1.0.128"
+
+[profile.release]
+strip = true  # Automatically strip symbols from the binary.
+opt-level = "z"
+lto = true
+codegen-units = 1
+panic = "abort"

@@ -41,7 +41,7 @@ cargo build --release
 Run the executable with the necessary arguments to send HTTP requests. Below are the available options:
 
 ```bash
-curlio 0.3.0
+curlio 0.4.0
 Kei-K23
 curlio is a cURL implementation in Rust
 
@@ -63,9 +63,10 @@ Options:
   -S, --store <store>            Store the response data to file
   -A, --user-agent <user_agent>  Specify custom User-Agent
   -u, --user <basic_auth>        Provide basic authentication in the format `username:password`
-  -L, --location <follow>        Follow HTTP redirects <f for False/ t for True [default: f]
-  --proxy <proxy>            Use HTTP/HTTPS proxy
+  -L, --location <follow>        Follow HTTP redirects <f for False/ t for True> [default: f]
+      --proxy <proxy>            Use HTTP/HTTPS proxy
   -D, --download <download>      Download file and save them in your file system
+      --cookies <cookies>        Attach cookies to the request
   -h, --help                     Print help
   -V, --version                  Print version
 ```
@@ -128,7 +129,30 @@ curlio -u "username:password" http://example.com
 curlio -H '{"Authorization": "Bearer your_token_here"}' http://example.com
 ```
 
-10. Simple file download
+10. Cookies file support. Add cookies values to request header:
+
+```bash
+
+# Example cookies json file (name what ever you want just to be sure to be .json file)
+# [
+#     {
+#         "name": "session-id",
+#         "value": "235-3769708-3150250"
+#     },
+#     {
+#         "name": "ubid-main",
+#         "value": "134-3687901-5787569"
+#     },
+#     {
+#         "name": "session-token",
+#         "value": "\"JKASDIUivnisduhfisd213biHUKLFbnoisd2344325\""
+#     }
+# ]
+
+curlio 'https://fakestoreapi.com/products' -X GET -H '{"Accept": "application/json"}' --cookies cookies.json
+```
+
+11. Simple file download
 
 ```bash
 curlio "https://file-examples.net/wp-content/uploads/2024/02/SampleTextFile_1MB.txt" -D test.txt

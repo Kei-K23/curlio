@@ -1,15 +1,16 @@
 use clap::{Arg, Command};
+use cookie::Cookie;
 use reqwest::blocking::{multipart, Client, RequestBuilder, Response};
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
-use serde_json::{from_str, to_string_pretty, Value};
+use serde_json::{from_reader, from_str, to_string_pretty, Value};
 use std::fs::File;
-use std::io::{self, Read, Write};
-use std::{path::Path, str::FromStr, time::Duration};
+use std::io::{self, BufReader, Read, Write};
+use std::{path::Path, str::FromStr};
 
 fn main() {
     // CLI interface
     let matches = Command::new("curlio")
-        .version("0.3.0")
+        .version("0.4.0")
         .about("curlio is a cURL implementation in Rust")
         .author("Kei-K23")
         .arg(
@@ -105,6 +106,11 @@ fn main() {
                 .short('D')
                 .long("download")
         )
+        .arg(
+            Arg::new("cookies")
+                .help("Attach cookies to the request")
+                .long("cookies")
+        )
         .get_matches();
 
     // Get url value
@@ -127,6 +133,7 @@ fn main() {
     let proxy: Option<&String> = matches.get_one::<String>("proxy");
     let follow_redirects = matches.get_one::<String>("follow").unwrap() == "t";
     let file_path = matches.get_one::<String>("download");
+    let cookies_file_path = matches.get_one::<String>("cookies");
 
     // Get timeout value
     let timeout = matches.get_one::<String>("timeout");
@@ -139,7 +146,7 @@ fn main() {
     let mut client_builder = Client::builder();
 
     if let Some(timeout_sec) = timeout {
-        client_builder = client_builder.timeout(Duration::from_secs(
+        client_builder = client_builder.timeout(std::time::Duration::from_secs(
             timeout_sec.parse::<u64>().unwrap_or(10),
         ));
     }
@@ -181,6 +188,22 @@ fn main() {
         }
         // Add headers to request
         req_builder = req_builder.headers(header_map);
+    }
+
+    // Add cookies to request if cookies flag exist
+    if let Some(cookies_file_path) = cookies_file_path {
+        let cookies = load_cookies_values(&cookies_file_path);
+
+        // Create cookie header string
+        let cookie_header_value = cookies
+            .iter()
+            .map(|cookie| format!("{}={}", cookie.name(), cookie.value()))
+            .collect::<Vec<String>>()
+            .join("; ");
+
+        println!("{}", cookie_header_value);
+        // Attach the cookies value to header request
+        req_builder = req_builder.header(reqwest::header::COOKIE, cookie_header_value);
     }
 
     // Attach data as the request body if provided
@@ -363,4 +386,33 @@ fn download_file(mut response: Response, path: &str) -> io::Result<()> {
     println!("\nDownload completed successfully");
 
     Ok(())
+}
+
+fn load_cookies_values(file_path: &str) -> Vec<Cookie<'static>> {
+    // Open the JSON file
+    let file = File::open(file_path).expect("Failed to open cookies file");
+    let reader = BufReader::new(file);
+
+    // Parse the JSON file into a Value
+    let cookies_json: Value = from_reader(reader).expect("Failed to parse cookies");
+
+    let mut cookies: Vec<Cookie<'static>> = Vec::new();
+
+    // Extract JSON array of Value
+    if let Value::Array(cookies_array) = cookies_json {
+        // Loop through array of Value and extract each as a Value object
+        for cookie_obj in cookies_array {
+            if let Value::Object(map) = cookie_obj {
+                let name = map.get("name").unwrap().as_str().unwrap().to_string();
+                let value = map.get("value").unwrap().as_str().unwrap().to_string();
+
+                // Build the cookie
+                let cookie = Cookie::build((name, value)).build();
+
+                cookies.push(cookie);
+            }
+        }
+    }
+
+    cookies
 }
