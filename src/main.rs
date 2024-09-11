@@ -5,6 +5,7 @@ use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
 use serde_json::{from_reader, from_str, to_string_pretty, Value};
 use std::fs::File;
 use std::io::{self, BufReader, Read, Write};
+use std::process::exit;
 use std::{path::Path, str::FromStr};
 
 fn main() {
@@ -16,7 +17,6 @@ fn main() {
         .arg(
             Arg::new("url")
                 .help("The URL to send the request to")
-                .required(true)
                 .index(1),
         )
         .arg(
@@ -111,10 +111,15 @@ fn main() {
                 .help("Attach cookies to the request")
                 .long("cookies")
         )
+        .arg(
+            Arg::new("api-test")
+                .help("Read api testing JSON file and perform requests to know API endpoints that define in the JSON file are all working")
+                .long("api-test")
+        )
         .get_matches();
 
     // Get url value
-    let url = matches.get_one::<String>("url").unwrap();
+    let url = matches.get_one::<String>("url");
     // Get http request method
     let method = matches.get_one::<String>("method").unwrap();
     // Get http request headers
@@ -137,153 +142,164 @@ fn main() {
     let follow_redirects = matches.get_one::<String>("follow").unwrap() == "t";
     let file_path = matches.get_one::<String>("download");
     let cookies_file_path = matches.get_one::<String>("cookies");
+    let api_test_file_path = matches.get_one::<String>("api-test");
 
-    // Get timeout value
-    let timeout = matches.get_one::<String>("timeout");
-    // Get retry value and parse to int (seconds)
-    let retry_count = matches
-        .get_one::<String>("retry")
-        .map_or(0, |r| r.parse::<u32>().unwrap_or(0));
-
-    // Init HTTP client with optional timeout
-    let mut client_builder = Client::builder();
-
-    if let Some(timeout_sec) = timeout {
-        client_builder = client_builder.timeout(std::time::Duration::from_secs(
-            timeout_sec.parse::<u64>().unwrap_or(10),
-        ));
-    }
-
-    // Setup follow redirects
-    if follow_redirects {
-        client_builder = client_builder.redirect(reqwest::redirect::Policy::limited(10));
-    }
-
-    // Setup proxy
-    if let Some(proxy_schema) = proxy {
-        client_builder = client_builder.proxy(reqwest::Proxy::all(proxy_schema).unwrap());
-    }
-
-    let client = client_builder.build().unwrap();
-
-    // Create request builder
-    let mut req_builder = match method.to_uppercase().as_str() {
-        "GET" => client.get(url),
-        "POST" => client.post(url),
-        "PUT" => client.put(url),
-        "PATCH" => client.patch(url),
-        "DELETE" => client.delete(url),
-        _ => panic!("Unsupported method!"),
-    };
-
-    // Init headers map and add headers if provided
-    if let Some(headers_json) = headers {
-        let parsed_headers: Value = from_str(headers_json).unwrap();
-        let mut header_map: HeaderMap = HeaderMap::new();
-
-        if let Value::Object(header_obj) = parsed_headers {
-            for (key, value) in header_obj {
-                let header_key: HeaderName = HeaderName::from_str(&key).unwrap();
-                let header_value = HeaderValue::from_str(value.as_str().unwrap()).unwrap();
-                // Add header key value to header map
-                header_map.insert(header_key, header_value);
-            }
+    if url.is_none() {
+        if let Some(api_test_file_path) = api_test_file_path {
+            load_requests_from_file(&api_test_file_path);
+            println!("All tests completed");
+        } else {
+            eprintln!("Missing api test file");
         }
-        // Add headers to request
-        req_builder = req_builder.headers(header_map);
-    }
+    } else {
+        let req_url = url.unwrap();
+        // Get timeout value
+        let timeout = matches.get_one::<String>("timeout");
+        // Get retry value and parse to int (seconds)
+        let retry_count = matches
+            .get_one::<String>("retry")
+            .map_or(0, |r| r.parse::<u32>().unwrap_or(0));
 
-    // Add cookies to request if cookies flag exist
-    if let Some(cookies_file_path) = cookies_file_path {
-        let cookies = load_cookies_values(&cookies_file_path);
+        // Init HTTP client with optional timeout
+        let mut client_builder = Client::builder();
 
-        // Create cookie header string
-        let cookie_header_value = cookies
-            .iter()
-            .map(|cookie| format!("{}={}", cookie.name(), cookie.value()))
-            .collect::<Vec<String>>()
-            .join("; ");
+        if let Some(timeout_sec) = timeout {
+            client_builder = client_builder.timeout(std::time::Duration::from_secs(
+                timeout_sec.parse::<u64>().unwrap_or(10),
+            ));
+        }
 
-        // Attach the cookies value to header request
-        req_builder = req_builder.header(reqwest::header::COOKIE, cookie_header_value);
-    }
+        // Setup follow redirects
+        if follow_redirects {
+            client_builder = client_builder.redirect(reqwest::redirect::Policy::limited(10));
+        }
 
-    // Attach data as the request body if provided
-    if let Some(data) = data {
-        req_builder = req_builder.body(data.clone());
-    }
+        // Setup proxy
+        if let Some(proxy_schema) = proxy {
+            client_builder = client_builder.proxy(reqwest::Proxy::all(proxy_schema).unwrap());
+        }
 
-    // Set custom User-Agent
-    if let Some(user_agent_value) = user_agent {
-        req_builder = req_builder.header("User-Agent", user_agent_value);
-    }
+        let client = client_builder.build().unwrap();
 
-    // Set basic authentication
-    if let Some(auth_value) = basic_auth {
-        // Define basic authentication
-        req_builder = req_builder.basic_auth(
-            auth_value.split(':').next().unwrap(),
-            Some(auth_value.split(':').nth(1).unwrap()),
-        );
-    }
+        // Create request builder
+        let mut req_builder = match method.to_uppercase().as_str() {
+            "GET" => client.get(req_url),
+            "POST" => client.post(req_url),
+            "PUT" => client.put(req_url),
+            "PATCH" => client.patch(req_url),
+            "DELETE" => client.delete(req_url),
+            _ => panic!("Unsupported method!"),
+        };
 
-    // When -F flag is used, handle Multipart form (file upload)
-    if let Some(form_json) = form_data {
-        // Parse json string to value
-        let parsed_form: Value = from_str(form_json).unwrap();
-        // Init multipart form
-        let mut form_part = multipart::Form::new();
+        // Init headers map and add headers if provided
+        if let Some(headers_json) = headers {
+            let parsed_headers: Value = from_str(headers_json).unwrap();
+            let mut header_map: HeaderMap = HeaderMap::new();
 
-        if let Value::Object(form_obj) = parsed_form {
-            // Loop through the Map
-            for (key, value) in form_obj {
-                if value.is_string() {
-                    // Get form value
-                    let form_value = value.as_str().unwrap();
+            if let Value::Object(header_obj) = parsed_headers {
+                for (key, value) in header_obj {
+                    let header_key: HeaderName = HeaderName::from_str(&key).unwrap();
+                    let header_value = HeaderValue::from_str(value.as_str().unwrap()).unwrap();
+                    // Add header key value to header map
+                    header_map.insert(header_key, header_value);
+                }
+            }
+            // Add headers to request
+            req_builder = req_builder.headers(header_map);
+        }
 
-                    // Check if form value is a file
-                    if Path::new(form_value).exists() {
-                        // Add file path to form part
-                        form_part = form_part.file(key.clone(), form_value).unwrap();
-                    } else {
-                        // Normal form part
-                        form_part = form_part.text(key.clone(), form_value.to_string());
+        // Add cookies to request if cookies flag exist
+        if let Some(cookies_file_path) = cookies_file_path {
+            let cookies = load_cookies_values(&cookies_file_path);
+
+            // Create cookie header string
+            let cookie_header_value = cookies
+                .iter()
+                .map(|cookie| format!("{}={}", cookie.name(), cookie.value()))
+                .collect::<Vec<String>>()
+                .join("; ");
+
+            // Attach the cookies value to header request
+            req_builder = req_builder.header(reqwest::header::COOKIE, cookie_header_value);
+        }
+
+        // Attach data as the request body if provided
+        if let Some(data) = data {
+            req_builder = req_builder.body(data.clone());
+        }
+
+        // Set custom User-Agent
+        if let Some(user_agent_value) = user_agent {
+            req_builder = req_builder.header("User-Agent", user_agent_value);
+        }
+
+        // Set basic authentication
+        if let Some(auth_value) = basic_auth {
+            // Define basic authentication
+            req_builder = req_builder.basic_auth(
+                auth_value.split(':').next().unwrap(),
+                Some(auth_value.split(':').nth(1).unwrap()),
+            );
+        }
+
+        // When -F flag is used, handle Multipart form (file upload)
+        if let Some(form_json) = form_data {
+            // Parse json string to value
+            let parsed_form: Value = from_str(form_json).unwrap();
+            // Init multipart form
+            let mut form_part = multipart::Form::new();
+
+            if let Value::Object(form_obj) = parsed_form {
+                // Loop through the Map
+                for (key, value) in form_obj {
+                    if value.is_string() {
+                        // Get form value
+                        let form_value = value.as_str().unwrap();
+
+                        // Check if form value is a file
+                        if Path::new(form_value).exists() {
+                            // Add file path to form part
+                            form_part = form_part.file(key.clone(), form_value).unwrap();
+                        } else {
+                            // Normal form part
+                            form_part = form_part.text(key.clone(), form_value.to_string());
+                        }
                     }
                 }
             }
+
+            // Add multipart form instance to req builder
+            req_builder = req_builder.multipart(form_part);
         }
 
-        // Add multipart form instance to req builder
-        req_builder = req_builder.multipart(form_part);
-    }
-
-    // Send or retry (when it is in retry mode) the request
-    let response = if retry_count > 0 {
-        send_with_retry(req_builder, retry_count, verbose)
-    } else {
-        match req_builder.send() {
-            Ok(res) => Some(res),
-            Err(err) => {
-                eprintln!("Request failed: {}", err);
-                None
+        // Send or retry (when it is in retry mode) the request
+        let response = if retry_count > 0 {
+            send_with_retry(req_builder, retry_count, verbose)
+        } else {
+            match req_builder.send() {
+                Ok(res) => Some(res),
+                Err(err) => {
+                    eprintln!("Request failed: {}", err);
+                    None
+                }
             }
-        }
-    };
+        };
 
-    // Print response details
-    if let Some(res) = response {
-        // Here if download the file
-        if let Some(path) = file_path {
-            // Download process
-            if let Err(err) = download_file(res, &path) {
-                eprintln!("Download failed: {}", err);
+        // Print response details
+        if let Some(res) = response {
+            // Here if download the file
+            if let Some(path) = file_path {
+                // Download process
+                if let Err(err) = download(res, &path) {
+                    eprintln!("Download failed: {}", err);
+                }
+            } else {
+                // Normal HTTP client request, response
+                handle_response(res, verbose, silent, store);
             }
         } else {
-            // Normal HTTP client request, response
-            handle_response(res, verbose, silent, store);
+            eprintln!("Failed to get response from server")
         }
-    } else {
-        eprintln!("Failed to get response from server")
     }
 }
 
@@ -341,7 +357,7 @@ fn handle_response(response: Response, verbose: bool, silent: bool, store: Optio
     }
 }
 
-fn download_file(mut response: Response, path: &str) -> io::Result<()> {
+fn download(mut response: Response, path: &str) -> io::Result<()> {
     // Get response content length (size) to the file
     let total_size = response.content_length().unwrap_or(0);
 
@@ -390,6 +406,7 @@ fn download_file(mut response: Response, path: &str) -> io::Result<()> {
     Ok(())
 }
 
+// Load cookies values from file
 fn load_cookies_values(file_path: &str) -> Vec<Cookie<'static>> {
     // Open the JSON file
     let file = File::open(file_path).expect("Failed to open cookies file");
@@ -417,4 +434,44 @@ fn load_cookies_values(file_path: &str) -> Vec<Cookie<'static>> {
     }
 
     cookies
+}
+
+fn load_requests_from_file(file_path: &str) {
+    // Open the JSON file that define request configuration
+    let file = File::open(file_path).expect("Failed to open request file");
+    let reader = BufReader::new(file);
+
+    let requests_json: Value = from_reader(reader).expect("Failed to pares request");
+
+    if let Value::Array(requests_array) = requests_json {
+        for request_obj in requests_array {
+            if let Value::Object(request_map) = request_obj {
+                let url = request_map.get("url").unwrap().as_str();
+
+                // Check url is part in the JSON configuration
+                if url.is_none() {
+                    eprintln!("Invalid request JSON");
+                    exit(1);
+                }
+
+                // Make api request call start
+
+                // Init HTTP client with optional timeout
+                let client_builder = Client::builder();
+
+                let client = client_builder.build().unwrap();
+
+                // Create request builder
+                let req_builder = client.get(url.unwrap());
+
+                match req_builder.send() {
+                    Ok(_) => println!("Complete test"),
+                    Err(err) => {
+                        eprintln!("Request failed : {}", err);
+                        exit(1);
+                    }
+                }
+            }
+        }
+    }
 }
